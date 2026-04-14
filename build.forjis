@@ -1,0 +1,36 @@
+version: 1
+
+repositories:
+  - type: dir
+    path: D:\Z\forjis-v4\forjis-plugins
+    
+plugins:
+  - name: software-dev
+
+orgs:
+  - name: sigurnox
+    teams:
+      - name: sigurnox-dev
+        roles:
+          - name: Explorer
+            agent: forjis-explorer
+          - name: Developer
+            agent: forjis-fullstack-developer
+            skills: [go]
+            hooks:
+              validation: [code-quality]
+          - name: Reviewer
+            agent: forjis-fullstack-reviewer
+            skills: [go]
+          - name: Assessor
+            agent: forjis-assessor
+            expertise: "Outcome assessment — scoring task completion against metrics"
+
+tasks:
+  source: dir
+  path: ./tasks
+
+constraints:
+  include:
+    - software-dev:git
+    
