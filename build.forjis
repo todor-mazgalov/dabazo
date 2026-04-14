@@ -1,8 +1,9 @@
 version: 1
 
 repositories:
-  - type: dir
-    path: D:\Z\forjis-v4\forjis-plugins
+  - type: git
+    url: https://github.com/todor-mazgalov/forjis-plugins.git
+    ref: main
     
 plugins:
   - name: software-dev
@@ -33,4 +34,4 @@ tasks:
 constraints:
   include:
     - software-dev:git
-    
+
