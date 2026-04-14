@@ -44,5 +44,11 @@ RUN useradd --create-home --shell /bin/bash dabazo \
 USER dabazo
 WORKDIR /home/dabazo
 
-ENTRYPOINT ["dabazo"]
-CMD ["help"]
+# Default to an interactive shell so you can run `dabazo ...` by hand.
+# Build:  docker build -t dabazo .
+# Run:    docker run -it --rm dabazo
+# Inside: dabazo help
+#         dabazo install --db postgres:16 --port 5432 --name dev
+#         dabazo start
+#         ...
+CMD ["bash"]
