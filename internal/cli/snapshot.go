@@ -2,10 +2,9 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
 	"os"
-
-	"github.com/spf13/cobra"
 
 	"dabazo/internal/prompt"
 	"dabazo/internal/registry"
@@ -13,23 +12,29 @@ import (
 
 var flagForce bool
 
-func newSnapshotCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "snapshot <db> <path>",
-		Short: "Dump a database to a plain SQL file",
-		Long: `Dump the entire database <db> to <path> as plain SQL (schema + data).
+// newSnapshotCommand creates the snapshot command descriptor.
+func newSnapshotCommand() *command {
+	return &command{
+		name:  "snapshot",
+		use:   "snapshot <db> <path>",
+		short: "Dump a database to a plain SQL file",
+		long: `Dump the entire database <db> to <path> as plain SQL (schema + data).
 Prompts interactively for database user and password. The dump is importable
 on another instance.`,
-		Example: `  dabazo snapshot alice /tmp/alice.sql
+		example: `  dabazo snapshot alice /tmp/alice.sql
   dabazo snapshot mydb ./backup.sql --name dev --force`,
-		Args: cobra.ExactArgs(2),
-		RunE: runSnapshot,
+		run: runSnapshot,
+		localFlags: func(fs *flag.FlagSet) {
+			fs.BoolVar(&flagForce, "force", false, "overwrite existing output file")
+		},
 	}
-	cmd.Flags().BoolVar(&flagForce, "force", false, "overwrite existing output file")
-	return cmd
 }
 
-func runSnapshot(cmd *cobra.Command, args []string) error {
+func runSnapshot(args []string) error {
+	if len(args) != 2 {
+		fmt.Fprintf(os.Stderr, "error: snapshot requires exactly 2 arguments, got %d\n", len(args))
+		os.Exit(ExitUsage)
+	}
 	dbName := args[0]
 	outPath := args[1]
 

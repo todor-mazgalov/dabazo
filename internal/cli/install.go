@@ -6,29 +6,28 @@ import (
 	"os"
 	"time"
 
-	"github.com/spf13/cobra"
-
 	"dabazo/internal/engines"
 	"dabazo/internal/pkgmgr"
 	"dabazo/internal/registry"
 )
 
-func newInstallCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "install",
-		Short: "Install and register a new database instance",
-		Long: `Install and register a new database instance via the native package manager.
+// newInstallCommand creates the install command descriptor.
+func newInstallCommand() *command {
+	return &command{
+		name:  "install",
+		use:   "install",
+		short: "Install and register a new database instance",
+		long: `Install and register a new database instance via the native package manager.
 
 Prints the exact commands it will run and prompts for confirmation before executing.
 The instance is left stopped after installation; run 'dabazo start' next.`,
-		Example: `  dabazo install --db postgres:16 --port 5432 --name dev
+		example: `  dabazo install --db postgres:16 --port 5432 --name dev
   dabazo install --db postgres:17 --port 5433 --name next -y`,
-		RunE: runInstall,
+		run: runInstall,
 	}
-	return cmd
 }
 
-func runInstall(cmd *cobra.Command, args []string) error {
+func runInstall(args []string) error {
 	if flagDB == "" {
 		fmt.Fprintln(os.Stderr, "error: --db is required for install")
 		os.Exit(ExitUsage)

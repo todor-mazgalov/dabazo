@@ -2,33 +2,36 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
+	"dabazo/internal/engines"
 	"dabazo/internal/pkgmgr"
 	"dabazo/internal/registry"
 )
 
 var flagPurge bool
 
-func newUninstallCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "uninstall",
-		Short: "Uninstall a database instance and remove it from the registry",
-		Long: `Stop the instance (if running), uninstall the packages via the same package
+// newUninstallCommand creates the uninstall command descriptor.
+func newUninstallCommand() *command {
+	return &command{
+		name:  "uninstall",
+		use:   "uninstall",
+		short: "Uninstall a database instance and remove it from the registry",
+		long: `Stop the instance (if running), uninstall the packages via the same package
 manager (with confirmation), and remove the registry entry. Does not delete
 the data directory unless --purge is passed.`,
-		Example: `  dabazo uninstall --name dev
+		example: `  dabazo uninstall --name dev
   dabazo uninstall --name dev --purge -y`,
-		RunE: runUninstall,
+		run: runUninstall,
+		localFlags: func(fs *flag.FlagSet) {
+			fs.BoolVar(&flagPurge, "purge", false, "also delete the data directory")
+		},
 	}
-	cmd.Flags().BoolVar(&flagPurge, "purge", false, "also delete the data directory")
-	return cmd
 }
 
-func runUninstall(cmd *cobra.Command, args []string) error {
+func runUninstall(args []string) error {
 	inst, err := registry.Resolve(flagName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -62,15 +65,30 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 	confirmOrAbort(flagYes)
 
 	runner := newRunner()
+	stopIfRunning(eng, *inst, runner)
+	executeUninstallPlan(plan, runner)
+	purgeDataIfRequested(inst)
 
-	// Stop if running.
-	if eng.IsRunning(*inst) {
-		if err := eng.Stop(*inst, runner); err != nil {
+	if err := registry.Remove(inst.Name); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(ExitGeneric)
+	}
+
+	fmt.Printf("Instance %q uninstalled and removed from registry.\n", inst.Name)
+	return nil
+}
+
+// stopIfRunning stops the instance if the engine reports it as running.
+func stopIfRunning(eng engines.Engine, inst engines.Instance, runner engines.CommandRunner) {
+	if eng.IsRunning(inst) {
+		if err := eng.Stop(inst, runner); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: failed to stop instance: %v\n", err)
 		}
 	}
+}
 
-	// Run uninstall commands.
+// executeUninstallPlan runs each uninstall command from the plan in sequence.
+func executeUninstallPlan(plan engines.InstallPlan, runner engines.CommandRunner) {
 	for _, c := range plan.Commands {
 		if len(c) == 0 {
 			continue
@@ -80,21 +98,16 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 			os.Exit(ExitPkgManager)
 		}
 	}
+}
 
-	// Purge data directory if requested.
-	if flagPurge && inst.DataDir != "" {
-		if err := os.RemoveAll(inst.DataDir); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to remove data directory: %v\n", err)
-		} else {
-			fmt.Printf("Data directory %s removed.\n", inst.DataDir)
-		}
+// purgeDataIfRequested removes the data directory when the --purge flag is set.
+func purgeDataIfRequested(inst *engines.Instance) {
+	if !flagPurge || inst.DataDir == "" {
+		return
 	}
-
-	if err := registry.Remove(inst.Name); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(ExitGeneric)
+	if err := os.RemoveAll(inst.DataDir); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to remove data directory: %v\n", err)
+		return
 	}
-
-	fmt.Printf("Instance %q uninstalled and removed from registry.\n", inst.Name)
-	return nil
+	fmt.Printf("Data directory %s removed.\n", inst.DataDir)
 }

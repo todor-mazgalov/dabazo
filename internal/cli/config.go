@@ -5,36 +5,42 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"dabazo/internal/registry"
 	"dabazo/internal/secret"
 )
 
-func newConfigCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "config",
-		Short: "Configuration subcommands",
+// newConfigCommand creates the config command group with its subcommands.
+func newConfigCommand() *command {
+	return &command{
+		name:  "config",
+		use:   "config",
+		short: "Configuration subcommands",
+		subcommands: []*command{
+			newConfigUserCommand(),
+		},
 	}
-	cmd.AddCommand(newConfigUserCmd())
-	return cmd
 }
 
-func newConfigUserCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "user <username>",
-		Short: "Create a database role and credentials file",
-		Long: `Create a database role named <username> with a randomly generated password
+// newConfigUserCommand creates the "config user" subcommand descriptor.
+func newConfigUserCommand() *command {
+	return &command{
+		name:  "user",
+		use:   "user <username>",
+		short: "Create a database role and credentials file",
+		long: `Create a database role named <username> with a randomly generated password
 and a database of the same name. Writes credentials to a file named <username>
 in the current directory (mode 0600).`,
-		Example: `  dabazo config user alice
+		example: `  dabazo config user alice
   dabazo config user bob --name dev`,
-		Args: cobra.ExactArgs(1),
-		RunE: runConfigUser,
+		run: runConfigUser,
 	}
 }
 
-func runConfigUser(cmd *cobra.Command, args []string) error {
+func runConfigUser(args []string) error {
+	if len(args) != 1 {
+		fmt.Fprintf(os.Stderr, "error: config user requires exactly 1 argument, got %d\n", len(args))
+		os.Exit(ExitUsage)
+	}
 	username := args[0]
 
 	inst, err := registry.Resolve(flagName)

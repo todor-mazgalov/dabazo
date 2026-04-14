@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"dabazo/internal/engines"
 	"dabazo/internal/engines/postgres"
 	"dabazo/internal/registry"
 )
 
-func newListCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:     "list",
-		Short:   "List all registered database instances",
-		Long:    "Print the registry: one line per instance with name, engine:version, port, and running/stopped status.",
-		Example: "  dabazo list",
-		RunE:    runList,
+// newListCommand creates the list command descriptor.
+func newListCommand() *command {
+	return &command{
+		name:    "list",
+		use:     "list",
+		short:   "List all registered database instances",
+		long:    "Print the registry: one line per instance with name, engine:version, port, and running/stopped status.",
+		example: "  dabazo list",
+		run:     runList,
 	}
 }
 
-func runList(cmd *cobra.Command, args []string) error {
+func runList(args []string) error {
 	instances, err := registry.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

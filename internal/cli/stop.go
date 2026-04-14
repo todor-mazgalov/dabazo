@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"dabazo/internal/pkgmgr"
 	"dabazo/internal/registry"
 )
 
-func newStopCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "stop",
-		Short: "Stop a database instance",
-		Long:  "Stop the database service for a registered instance. Idempotent: stopping an already-stopped instance prints \"already stopped\" and exits 0.",
-		Example: `  dabazo stop
+// newStopCommand creates the stop command descriptor.
+func newStopCommand() *command {
+	return &command{
+		name:  "stop",
+		use:   "stop",
+		short: "Stop a database instance",
+		long:  "Stop the database service for a registered instance. Idempotent: stopping an already-stopped instance prints \"already stopped\" and exits 0.",
+		example: `  dabazo stop
   dabazo stop --name dev`,
-		RunE: runStop,
+		run: runStop,
 	}
 }
 
-func runStop(cmd *cobra.Command, args []string) error {
+func runStop(args []string) error {
 	inst, err := registry.Resolve(flagName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

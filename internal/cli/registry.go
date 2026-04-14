@@ -2,11 +2,10 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"time"
-
-	"github.com/spf13/cobra"
 
 	"dabazo/internal/engines"
 	"dabazo/internal/registry"
@@ -14,32 +13,38 @@ import (
 
 var flagHost string
 
-func newRegistryCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "registry",
-		Short: "Manage the instance registry",
+// newRegistryCommand creates the registry command group with add and remove subcommands.
+func newRegistryCommand() *command {
+	return &command{
+		name:  "registry",
+		use:   "registry",
+		short: "Manage the instance registry",
+		subcommands: []*command{
+			newRegistryAddCommand(),
+			newRegistryRemoveCommand(),
+		},
 	}
-	cmd.AddCommand(newRegistryAddCmd())
-	cmd.AddCommand(newRegistryRemoveCmd())
-	return cmd
 }
 
-func newRegistryAddCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Register an externally-managed database instance",
-		Long: `Register an already-existing database instance that was not installed by dabazo.
+// newRegistryAddCommand creates the "registry add" subcommand descriptor.
+func newRegistryAddCommand() *command {
+	return &command{
+		name:  "add",
+		use:   "add",
+		short: "Register an externally-managed database instance",
+		long: `Register an already-existing database instance that was not installed by dabazo.
 No packages are installed, no service is touched. The instance is recorded with
 packageManager "external" and cannot be started/stopped/uninstalled by dabazo.`,
-		Example: `  dabazo registry add --db postgres:16 --port 5432 --name legacy
+		example: `  dabazo registry add --db postgres:16 --port 5432 --name legacy
   dabazo registry add --db postgres:16 --port 5432 --name remote --host 10.0.0.5`,
-		RunE: runRegistryAdd,
+		run: runRegistryAdd,
+		localFlags: func(fs *flag.FlagSet) {
+			fs.StringVar(&flagHost, "host", "localhost", "host address for the instance")
+		},
 	}
-	cmd.Flags().StringVar(&flagHost, "host", "localhost", "host address for the instance")
-	return cmd
 }
 
-func runRegistryAdd(cmd *cobra.Command, args []string) error {
+func runRegistryAdd(args []string) error {
 	if flagDB == "" {
 		fmt.Fprintln(os.Stderr, "error: --db is required for registry add")
 		os.Exit(ExitUsage)
@@ -77,19 +82,21 @@ func runRegistryAdd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newRegistryRemoveCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "remove",
-		Short: "Remove an instance from the registry",
-		Long: `Remove an entry from the registry without uninstalling anything or touching
+// newRegistryRemoveCommand creates the "registry remove" subcommand descriptor.
+func newRegistryRemoveCommand() *command {
+	return &command{
+		name:  "remove",
+		use:   "remove",
+		short: "Remove an instance from the registry",
+		long: `Remove an entry from the registry without uninstalling anything or touching
 the database itself. Safe for both dabazo-installed and externally-added entries.
 --name is always required.`,
-		Example: `  dabazo registry remove --name legacy`,
-		RunE:    runRegistryRemove,
+		example: `  dabazo registry remove --name legacy`,
+		run:     runRegistryRemove,
 	}
 }
 
-func runRegistryRemove(cmd *cobra.Command, args []string) error {
+func runRegistryRemove(args []string) error {
 	if flagName == "" {
 		fmt.Fprintln(os.Stderr, "error: --name is required for registry remove")
 		os.Exit(ExitUsage)

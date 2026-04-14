@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"dabazo/internal/pkgmgr"
 	"dabazo/internal/registry"
 )
 
-func newStartCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "start",
-		Short: "Start a database instance",
-		Long:  "Start the database service for a registered instance. Idempotent: starting an already-running instance prints \"already running\" and exits 0.",
-		Example: `  dabazo start
+// newStartCommand creates the start command descriptor.
+func newStartCommand() *command {
+	return &command{
+		name:  "start",
+		use:   "start",
+		short: "Start a database instance",
+		long:  "Start the database service for a registered instance. Idempotent: starting an already-running instance prints \"already running\" and exits 0.",
+		example: `  dabazo start
   dabazo start --name dev`,
-		RunE: runStart,
+		run: runStart,
 	}
 }
 
-func runStart(cmd *cobra.Command, args []string) error {
+func runStart(args []string) error {
 	inst, err := registry.Resolve(flagName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

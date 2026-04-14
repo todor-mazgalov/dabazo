@@ -3,33 +3,38 @@ package cli
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/spf13/cobra"
 
 	"dabazo/internal/registry"
 )
 
 var flagUser string
 
-func newMigrateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "migrate <filepath>",
-		Short: "Apply a SQL migration file to an instance",
-		Long: `Apply the SQL file at <filepath> to the instance's database.
+// newMigrateCommand creates the migrate command descriptor.
+func newMigrateCommand() *command {
+	return &command{
+		name:  "migrate",
+		use:   "migrate <filepath>",
+		short: "Apply a SQL migration file to an instance",
+		long: `Apply the SQL file at <filepath> to the instance's database.
 Requires --user to identify which role and credential file to use.`,
-		Example: `  dabazo migrate ./V1__setup.sql --user alice
+		example: `  dabazo migrate ./V1__setup.sql --user alice
   dabazo migrate ./V2__data.sql --user bob --name dev`,
-		Args: cobra.ExactArgs(1),
-		RunE: runMigrate,
+		run: runMigrate,
+		localFlags: func(fs *flag.FlagSet) {
+			fs.StringVar(&flagUser, "user", "", "database role to use (required)")
+		},
 	}
-	cmd.Flags().StringVar(&flagUser, "user", "", "database role to use (required)")
-	return cmd
 }
 
-func runMigrate(cmd *cobra.Command, args []string) error {
+func runMigrate(args []string) error {
+	if len(args) != 1 {
+		fmt.Fprintf(os.Stderr, "error: migrate requires exactly 1 argument, got %d\n", len(args))
+		os.Exit(ExitUsage)
+	}
 	sqlFile := args[0]
 
 	if flagUser == "" {
