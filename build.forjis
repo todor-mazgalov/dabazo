@@ -9,23 +9,12 @@ plugins:
   - name: software-dev
 
 orgs:
-  - name: sigurnox
+  - name: dabazo
     teams:
-      - name: sigurnox-dev
-        roles:
-          - name: Explorer
-            agent: forjis-explorer
-          - name: Developer
-            agent: forjis-fullstack-developer
-            skills: [go]
-            hooks:
-              validation: [code-quality]
-          - name: Reviewer
-            agent: forjis-fullstack-reviewer
-            skills: [go]
-          - name: Assessor
-            agent: forjis-assessor
-            expertise: "Outcome assessment — scoring task completion against metrics"
+      - name: Research
+        extends: software-dev:RnD:Research
+      - name: Dev
+        extends: software-dev:RnD:Go
 
 tasks:
   source: dir
