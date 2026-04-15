@@ -33,12 +33,20 @@ dabazo is a cross-platform CLI tool for installing, running, and operating datab
 
 ## Installation
 
+### With `go install`
+
+```bash
+go install github.com/todor-mazgalov/dabazo/cmd/dabazo@latest
+```
+
+The resulting binary lands in `$(go env GOBIN)` (or `$GOPATH/bin`).
+
 ### From source
 
 Clone and build:
 
 ```bash
-git clone https://github.com/your-org/dabazo.git
+git clone https://github.com/todor-mazgalov/dabazo.git
 cd dabazo
 go build -o dabazo ./cmd/dabazo
 ```
@@ -47,13 +55,13 @@ go build -o dabazo ./cmd/dabazo
 
 ```bash
 # 1. Install PostgreSQL 16 on port 5432
-dabazo install --db postgres:16 --port 5432 --name dev
+dabazo install --engine postgres:16 --port 5432 --name dev
 
 # 2. Start the instance
 dabazo start --name dev
 
 # 3. Create a database user with auto-generated credentials
-dabazo config user alice --name dev
+dabazo create user alice --name dev
 
 # 4. Apply a migration
 dabazo migrate ./V1__setup.sql --user alice --name dev
@@ -71,17 +79,17 @@ Install and register a new database instance via the native package manager. Pri
 dabazo install [flags]
 ```
 
-**Required flags:** `--db`, `--port`, `--name`
+**Required flags:** `--engine`, `--port`, `--name`
 
 **Examples:**
 
 ```bash
-dabazo install --db postgres:16 --port 5432 --name dev
-dabazo install --db postgres:17 --port 5433 --name next -y
+dabazo install --engine postgres:16 --port 5432 --name dev
+dabazo install -e postgres:17 -p 5433 -n next -y
 ```
 
 **Notes:**
-- Version defaults to `16` if omitted from `--db` (e.g., `--db postgres`)
+- Version defaults to `16` if omitted from `--engine` (e.g., `--engine postgres`)
 - The package manager is auto-detected based on your OS
 - After install, the instance is registered in the local registry
 
@@ -129,26 +137,77 @@ dabazo stop --name dev
 
 ---
 
-### `dabazo config user`
+### `dabazo create user`
 
 Create a database role with a randomly generated password and a database of the same name. Writes credentials to a file named after the username in the current directory (mode 0600). The credential file contains `DB_URL`, `DB_USER`, and `DB_PASSWORD` in `.env` format.
 
 **Usage:**
 
 ```
-dabazo config user <username> [flags]
+dabazo create user <username> [flags]
 ```
 
 **Examples:**
 
 ```bash
-dabazo config user alice
-dabazo config user bob --name dev
+dabazo create user alice
+dabazo create user bob --name dev
 ```
 
 **Notes:**
 - Refuses to overwrite an existing credential file
-- The credential file is used by `dabazo migrate`
+- The credential file is used by `dabazo migrate`, `dabazo create schema`, and `dabazo snapshot`
+
+---
+
+### `dabazo create database`
+
+Create a database owned by an existing role. Runs as the PostgreSQL superuser and does not require a credential file. The owner role must already exist (created via `dabazo create user` or externally).
+
+**Usage:**
+
+```
+dabazo create database <database-name> [flags]
+```
+
+**Required flags:** `--user`
+
+| Local Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--user` | `-u` | string | `""` | Owner role for the new database |
+
+**Examples:**
+
+```bash
+dabazo create database app -u alice
+dabazo create database reports -u alice --name dev
+```
+
+---
+
+### `dabazo create schema`
+
+Create a schema inside an existing database. Connects as the role identified by `--user`, reading the password from a credential file named after the user in the current directory.
+
+**Usage:**
+
+```
+dabazo create schema <schema-name> [flags]
+```
+
+**Required flags:** `--user`, `--database`
+
+| Local Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--user` | `-u` | string | `""` | Role to connect as |
+| `--database` | `-db` | string | `""` | Database to create the schema in |
+
+**Examples:**
+
+```bash
+dabazo create schema audit -db app -u alice
+dabazo create schema reporting -db app -u alice --name dev
+```
 
 ---
 
@@ -164,15 +223,21 @@ dabazo migrate <filepath> [flags]
 
 **Required flags:** `--user`
 
-| Local Flag | Type | Default | Description |
-|---|---|---|---|
-| `--user` | string | `""` | Database role to use; must match an existing credential file in the current directory |
+| Local Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--user` | `-u` | string | `""` | Database role to use; must match an existing credential file in the current directory |
+| `--database` | `-db` | string | `""` (falls back to `--user`) | Target database name |
+| `--schema` | `-s` | string | `""` | Session `search_path` (applied via `PGOPTIONS`) |
+| `--host` | `-h` | string | `""` (uses registry) | Override instance host from the registry |
+
+`--port` / `-p` (global) also overrides the instance port when set.
 
 **Examples:**
 
 ```bash
 dabazo migrate ./V1__setup.sql --user alice
-dabazo migrate ./V2__data.sql --user bob --name dev
+dabazo migrate ./V2__data.sql -u bob -n dev -db app -s public
+dabazo migrate ./V3.sql -u alice -h 10.0.0.5 -p 5433
 ```
 
 ---
@@ -230,7 +295,7 @@ Register an already-existing database instance that was not installed by dabazo.
 dabazo registry add [flags]
 ```
 
-**Required flags:** `--db`, `--port`, `--name`
+**Required flags:** `--engine`, `--port`, `--name`
 
 | Local Flag | Type | Default | Description |
 |---|---|---|---|
@@ -239,8 +304,8 @@ dabazo registry add [flags]
 **Examples:**
 
 ```bash
-dabazo registry add --db postgres:16 --port 5432 --name legacy
-dabazo registry add --db postgres:16 --port 5432 --name remote --host 10.0.0.5
+dabazo registry add --engine postgres:16 --port 5432 --name legacy
+dabazo registry add -e postgres:16 -p 5432 -n remote --host 10.0.0.5
 ```
 
 ---
@@ -292,12 +357,14 @@ dabazo uninstall --name dev --purge -y
 
 These flags are available on all commands:
 
-| Flag | Type | Default | Description |
-|---|---|---|---|
-| `--name` | string | `""` | Logical instance name (optional when only one instance is registered) |
-| `--db` | string | `""` | Engine and version in `engine[:version]` format (e.g., `postgres:16`) |
-| `--port` | int | `0` | TCP port the instance listens on |
-| `--yes` / `-y` | bool | `false` | Skip confirmation prompts |
+| Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--name` | `-n` | string | `""` | Logical instance name (optional when only one instance is registered) |
+| `--engine` | `-e` | string | `""` | Engine and version in `engine[:version]` format (e.g., `postgres:16`) |
+| `--port` | `-p` | int | `0` | TCP port the instance listens on |
+| `--yes` | `-y` | bool | `false` | Skip confirmation prompts |
+
+**Help:** use `--help` on any command. The short `-h` is reserved for `--host` on commands that accept it (e.g. `dabazo migrate`); all other commands accept `-h` as a help alias.
 
 ## Registry
 
@@ -332,7 +399,7 @@ The `--name` flag follows this resolution logic:
 
 ## Supported Database Engines
 
-| Engine | `--db` value | Status |
+| Engine | `--engine` value | Status |
 |---|---|---|
 | PostgreSQL | `postgres[:version]` | MVP (fully implemented) |
 

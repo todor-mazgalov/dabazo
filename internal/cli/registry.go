@@ -45,8 +45,8 @@ packageManager "external" and cannot be started/stopped/uninstalled by dabazo.`,
 }
 
 func runRegistryAdd(args []string) error {
-	if flagDB == "" {
-		fmt.Fprintln(os.Stderr, "error: --db is required for registry add")
+	if flagEngine == "" {
+		fmt.Fprintln(os.Stderr, "error: --engine is required for registry add")
 		os.Exit(ExitUsage)
 	}
 	if flagPort == 0 {
@@ -58,7 +58,7 @@ func runRegistryAdd(args []string) error {
 		os.Exit(ExitUsage)
 	}
 
-	engineName, version := parseDB(flagDB)
+	engineName, version := parseDB(flagEngine)
 	if version == "" {
 		version = "unknown"
 	}

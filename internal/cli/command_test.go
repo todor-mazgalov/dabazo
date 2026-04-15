@@ -17,11 +17,13 @@ import (
 func resetGlobalFlags(t *testing.T) {
 	t.Helper()
 	flagName = ""
-	flagDB = ""
+	flagEngine = ""
 	flagPort = 0
 	flagYes = false
 	flagHost = ""
 	flagUser = ""
+	flagDatabase = ""
+	flagSchema = ""
 	flagForce = false
 	flagPurge = false
 }
@@ -59,9 +61,9 @@ func TestFindSubcommand_NotFound(t *testing.T) {
 
 func TestFindSubcommand_TwoLevel_Config(t *testing.T) {
 	root := newRootCommand()
-	configCmd := findSubcommand(root, "config")
+	configCmd := findSubcommand(root, "create")
 	if configCmd == nil {
-		t.Fatal("expected to find 'config' group command")
+		t.Fatal("expected to find 'create' group command")
 	}
 	userCmd := findSubcommand(configCmd, "user")
 	if userCmd == nil {
@@ -100,7 +102,7 @@ func TestContainsHelpFlag(t *testing.T) {
 		{"short -h", []string{"-h"}, true},
 		{"single-dash -help", []string{"-help"}, true},
 		{"mixed with other flags", []string{"--name", "dev", "--help"}, true},
-		{"no help flag", []string{"--name", "dev", "--db", "postgres:16"}, false},
+		{"no help flag", []string{"--name", "dev", "--engine", "postgres:16"}, false},
 		{"empty args", []string{}, false},
 		{"help after separator", []string{"--", "--help"}, false},
 		{"help before separator", []string{"--help", "--"}, true},
@@ -139,7 +141,7 @@ func TestUsageSuffix_LeafNoPositionalArg(t *testing.T) {
 
 func TestUsageSuffix_GroupCommand(t *testing.T) {
 	cmd := &command{
-		use: "config",
+		use: "create",
 		subcommands: []*command{
 			{name: "user"},
 		},
@@ -167,7 +169,7 @@ func TestPrintHelp_RootContainsAllSubcommands(t *testing.T) {
 	out := captureHelp(t, root, "dabazo")
 
 	expected := []string{
-		"install", "start", "stop", "config", "migrate",
+		"install", "start", "stop", "create", "migrate",
 		"snapshot", "registry", "list", "uninstall",
 	}
 	for _, name := range expected {
@@ -207,7 +209,7 @@ func TestPrintHelp_InstallContainsFlagsSection(t *testing.T) {
 func TestPrintHelp_InstallContainsGlobalFlags(t *testing.T) {
 	cmd := newInstallCommand()
 	out := captureHelp(t, cmd, "dabazo install")
-	for _, flag := range []string{"-name", "-db", "-port", "-yes", "-y"} {
+	for _, flag := range []string{"-name", "-engine", "-port", "-yes", "-y"} {
 		if !strings.Contains(out, flag) {
 			t.Errorf("install help missing global flag %q", flag)
 		}
@@ -223,8 +225,8 @@ func TestPrintHelp_InstallContainsExamples(t *testing.T) {
 }
 
 func TestPrintHelp_ConfigGroupShowsSubcommandList(t *testing.T) {
-	cmd := newConfigCommand()
-	out := captureHelp(t, cmd, "dabazo config")
+	cmd := newCreateCommand()
+	out := captureHelp(t, cmd, "dabazo create")
 	if !strings.Contains(out, "user") {
 		t.Error("config help missing 'user' subcommand listing")
 	}
@@ -234,8 +236,8 @@ func TestPrintHelp_ConfigGroupShowsSubcommandList(t *testing.T) {
 }
 
 func TestPrintHelp_ConfigGroupNoFlagsSection(t *testing.T) {
-	cmd := newConfigCommand()
-	out := captureHelp(t, cmd, "dabazo config")
+	cmd := newCreateCommand()
+	out := captureHelp(t, cmd, "dabazo create")
 	// Group commands have no run handler so printHelp does not emit a Flags section.
 	if strings.Contains(out, "Flags:") {
 		t.Error("config group help should NOT contain a 'Flags:' section (no run handler)")
@@ -243,7 +245,7 @@ func TestPrintHelp_ConfigGroupNoFlagsSection(t *testing.T) {
 }
 
 func TestPrintHelp_ConfigUserUsageLine(t *testing.T) {
-	cmd := newConfigUserCommand()
+	cmd := newCreateUserCommand()
 	out := captureHelp(t, cmd, "dabazo config user")
 	if !strings.Contains(out, "<username>") {
 		t.Error("config user help missing '<username>' in usage line")
@@ -300,7 +302,7 @@ func TestRegisterGlobalFlags_AllFlagsPresent(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	registerGlobalFlags(fs)
 
-	for _, name := range []string{"name", "db", "port", "yes", "y"} {
+	for _, name := range []string{"name", "n", "engine", "e", "port", "p", "yes", "y"} {
 		if fs.Lookup(name) == nil {
 			t.Errorf("expected global flag %q to be registered, but it was not", name)
 		}
@@ -319,15 +321,15 @@ func TestRegisterGlobalFlags_ParseName(t *testing.T) {
 	}
 }
 
-func TestRegisterGlobalFlags_ParseDB(t *testing.T) {
+func TestRegisterGlobalFlags_ParseEngine(t *testing.T) {
 	resetGlobalFlags(t)
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	registerGlobalFlags(fs)
-	if err := fs.Parse([]string{"--db", "postgres:16"}); err != nil {
+	if err := fs.Parse([]string{"--engine", "postgres:16"}); err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}
-	if flagDB != "postgres:16" {
-		t.Errorf("flagDB = %q, want %q", flagDB, "postgres:16")
+	if flagEngine != "postgres:16" {
+		t.Errorf("flagEngine = %q, want %q", flagEngine, "postgres:16")
 	}
 }
 
@@ -534,14 +536,14 @@ func TestResolveAndRun_TwoLevelDispatch(t *testing.T) {
 		},
 	}
 	group := &command{
-		name:        "config",
+		name:        "create",
 		subcommands: []*command{leaf},
 	}
 	root := &command{
 		name:        "root",
 		subcommands: []*command{group},
 	}
-	if err := resolveAndRun(root, []string{"config", "user", "alice"}, "root"); err != nil {
+	if err := resolveAndRun(root, []string{"create", "user", "alice"}, "root"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !ran {
@@ -553,7 +555,7 @@ func TestResolveAndRun_GroupWithNoArgsShowsHelp(t *testing.T) {
 	resetGlobalFlags(t)
 	leaf := &command{name: "sub", use: "sub", short: "A subcommand", run: func(args []string) error { return nil }}
 	group := &command{
-		name:        "config",
+		name:        "create",
 		short:       "Configuration",
 		subcommands: []*command{leaf},
 	}
@@ -561,8 +563,8 @@ func TestResolveAndRun_GroupWithNoArgsShowsHelp(t *testing.T) {
 		name:        "root",
 		subcommands: []*command{group},
 	}
-	// Passing zero args beyond "config" should trigger help output (not an error).
-	err := resolveAndRun(root, []string{"config"}, "root")
+	// Passing zero args beyond "create" should trigger help output (not an error).
+	err := resolveAndRun(root, []string{"create"}, "root")
 	if err != nil {
 		t.Errorf("expected nil error for group with no args, got: %v", err)
 	}
@@ -617,7 +619,7 @@ func TestDispatch_InstallRouting(t *testing.T) {
 func TestDispatch_ConfigUserHelpRouting(t *testing.T) {
 	resetGlobalFlags(t)
 	root := newRootCommand()
-	err := dispatch(root, []string{"dabazo", "config", "user", "--help"})
+	err := dispatch(root, []string{"dabazo", "create", "user", "--help"})
 	if err != nil {
 		t.Errorf("dispatch config user --help returned error: %v", err)
 	}
@@ -671,7 +673,7 @@ func TestNewRootCommand_AllExpectedSubcommands(t *testing.T) {
 	for _, sub := range root.subcommands {
 		names[sub.name] = true
 	}
-	expected := []string{"install", "start", "stop", "config", "migrate", "snapshot", "registry", "list", "uninstall"}
+	expected := []string{"install", "start", "stop", "create", "migrate", "snapshot", "registry", "list", "uninstall"}
 	for _, name := range expected {
 		if !names[name] {
 			t.Errorf("missing subcommand %q in root command", name)
@@ -820,15 +822,15 @@ func TestFlagParsing_GlobalAndLocalCombined(t *testing.T) {
 	registerGlobalFlags(fs)
 	fs.StringVar(&flagHost, "host", "localhost", "host address")
 
-	args := []string{"--name", "test", "--db", "postgres:16", "--port", "5432", "--host", "10.0.0.5"}
+	args := []string{"--name", "test", "--engine", "postgres:16", "--port", "5432", "--host", "10.0.0.5"}
 	if err := fs.Parse(args); err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}
 	if flagName != "test" {
 		t.Errorf("flagName = %q, want %q", flagName, "test")
 	}
-	if flagDB != "postgres:16" {
-		t.Errorf("flagDB = %q, want %q", flagDB, "postgres:16")
+	if flagEngine != "postgres:16" {
+		t.Errorf("flagEngine = %q, want %q", flagEngine, "postgres:16")
 	}
 	if flagPort != 5432 {
 		t.Errorf("flagPort = %d, want 5432", flagPort)

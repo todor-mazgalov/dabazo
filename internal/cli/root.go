@@ -6,10 +6,10 @@ import (
 )
 
 var (
-	flagName string
-	flagDB   string
-	flagPort int
-	flagYes  bool
+	flagName   string
+	flagEngine string
+	flagPort   int
+	flagYes    bool
 )
 
 // newRootCommand builds the root command tree with all subcommands registered.
@@ -27,7 +27,7 @@ instance, create users, apply migrations, and snapshot data for debugging.`,
 			newInstallCommand(),
 			newStartCommand(),
 			newStopCommand(),
-			newConfigCommand(),
+			newCreateCommand(),
 			newMigrateCommand(),
 			newSnapshotCommand(),
 			newRegistryCommand(),

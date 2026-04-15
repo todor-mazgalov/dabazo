@@ -286,12 +286,53 @@ func (d *Driver) CreateUser(inst engines.Instance, username, password string, ru
 	return nil
 }
 
-// ApplySQL executes a SQL file against the instance database.
-func (d *Driver) ApplySQL(inst engines.Instance, user, password, filepath string, runner engines.CommandRunner) error {
+// CreateDatabase creates a database owned by the given role using psql.
+func (d *Driver) CreateDatabase(inst engines.Instance, database, owner string, runner engines.CommandRunner) error {
 	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`CREATE DATABASE "%s" OWNER "%s";`, database, owner)
+
+	if inst.PackageManager == "apt" && runtime.GOOS == "linux" {
+		_, err := runner.Run("sudo", "-u", "postgres", psql,
+			"-p", strconv.Itoa(inst.Port), "-c", sql)
+		if err != nil {
+			return fmt.Errorf("creating database %q: %w", database, err)
+		}
+		return nil
+	}
+	_, err := runner.Run(psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", "postgres", "-c", sql)
+	if err != nil {
+		return fmt.Errorf("creating database %q: %w", database, err)
+	}
+	return nil
+}
+
+// CreateSchema creates a schema inside the given database, connecting as the
+// provided user with the given password.
+func (d *Driver) CreateSchema(inst engines.Instance, database, schema, user, password string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`CREATE SCHEMA "%s";`, schema)
 	env := []string{fmt.Sprintf("PGPASSWORD=%s", password)}
 	_, err := runner.RunWithEnv(env, psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
-		"-U", user, "-d", user, "-f", filepath)
+		"-U", user, "-d", database, "-c", sql)
+	if err != nil {
+		return fmt.Errorf("creating schema %q in database %q: %w", schema, database, err)
+	}
+	return nil
+}
+
+// ApplySQL executes a SQL file against the instance database.
+func (d *Driver) ApplySQL(inst engines.Instance, user, password, database, schema, filepath string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	if database == "" {
+		database = user
+	}
+	env := []string{fmt.Sprintf("PGPASSWORD=%s", password)}
+	if schema != "" {
+		env = append(env, fmt.Sprintf("PGOPTIONS=-c search_path=%s", schema))
+	}
+	_, err := runner.RunWithEnv(env, psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", user, "-d", database, "-f", filepath)
 	if err != nil {
 		return fmt.Errorf("applying SQL %q: %w", filepath, err)
 	}

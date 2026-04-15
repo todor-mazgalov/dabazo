@@ -21,15 +21,15 @@ func newInstallCommand() *command {
 
 Prints the exact commands it will run and prompts for confirmation before executing.
 The instance is left stopped after installation; run 'dabazo start' next.`,
-		example: `  dabazo install --db postgres:16 --port 5432 --name dev
-  dabazo install --db postgres:17 --port 5433 --name next -y`,
+		example: `  dabazo install --engine postgres:16 --port 5432 --name dev
+  dabazo install -e postgres:17 -p 5433 -n next -y`,
 		run: runInstall,
 	}
 }
 
 func runInstall(args []string) error {
-	if flagDB == "" {
-		fmt.Fprintln(os.Stderr, "error: --db is required for install")
+	if flagEngine == "" {
+		fmt.Fprintln(os.Stderr, "error: --engine is required for install")
 		os.Exit(ExitUsage)
 	}
 	if flagPort == 0 {
@@ -51,7 +51,7 @@ func runInstall(args []string) error {
 		os.Exit(ExitAlreadyExists)
 	}
 
-	engineName, version := parseDB(flagDB)
+	engineName, version := parseDB(flagEngine)
 	eng, err := resolveEngine(engineName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

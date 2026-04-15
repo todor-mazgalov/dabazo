@@ -325,7 +325,7 @@ func TestDriver_ApplySQL_UsesPGPASSWORD(t *testing.T) {
 	d := &Driver{}
 	inst := engines.Instance{Host: "localhost", Port: 5432}
 	runner := &mockRunner{}
-	err := d.ApplySQL(inst, "alice", "pass123", "/tmp/test.sql", runner)
+	err := d.ApplySQL(inst, "alice", "pass123", "", "", "/tmp/test.sql", runner)
 	if err != nil {
 		t.Fatalf("ApplySQL: %v", err)
 	}
