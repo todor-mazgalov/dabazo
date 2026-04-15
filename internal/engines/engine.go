@@ -26,6 +26,7 @@ type InstallPlan struct {
 	Commands    [][]string
 	PostInstall []string
 	DataDir     string
+	ConfigFile  string
 	ServiceName string
 	BinDir      string
 }
