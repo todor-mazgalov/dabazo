@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"dabazo/internal/prompt"
-	"dabazo/internal/registry"
+	"github.com/todor-mazgalov/dabazo/internal/prompt"
+	"github.com/todor-mazgalov/dabazo/internal/registry"
 )
 
 var flagForce bool

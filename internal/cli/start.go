@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"dabazo/internal/pkgmgr"
-	"dabazo/internal/registry"
+	"github.com/todor-mazgalov/dabazo/internal/pkgmgr"
+	"github.com/todor-mazgalov/dabazo/internal/registry"
 )
 
 // newStartCommand creates the start command descriptor.

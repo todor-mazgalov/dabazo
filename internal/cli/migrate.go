@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"dabazo/internal/registry"
+	"github.com/todor-mazgalov/dabazo/internal/registry"
 )
 
 var flagUser string

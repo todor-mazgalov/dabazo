@@ -1,4 +1,8 @@
-# dabazo
+<p>
+  <img src="./assets/logo-h.png" alt="Dabazo" height="80">
+</p>
+
+# Dabazo
 
 Cross-platform CLI for installing, running, and operating database engines during development.
 

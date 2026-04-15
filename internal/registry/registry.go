@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
 )
 
 // configDir returns the OS-specific directory for dabazo configuration.

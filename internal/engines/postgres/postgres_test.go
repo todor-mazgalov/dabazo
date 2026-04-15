@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
 )
 
 // mockPM is a minimal PackageManager mock for testing Plan().

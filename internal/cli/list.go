@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"dabazo/internal/engines"
-	"dabazo/internal/engines/postgres"
-	"dabazo/internal/registry"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/engines/postgres"
+	"github.com/todor-mazgalov/dabazo/internal/registry"
 )
 
 // newListCommand creates the list command descriptor.

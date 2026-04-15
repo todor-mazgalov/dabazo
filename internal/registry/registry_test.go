@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
 )
 
 func setupTestDir(t *testing.T) {

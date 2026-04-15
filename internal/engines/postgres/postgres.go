@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
 )
 
 // Driver implements the Engine interface for PostgreSQL.

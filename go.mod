@@ -1,4 +1,4 @@
-module dabazo
+module github.com/todor-mazgalov/dabazo
 
 go 1.26.2
 

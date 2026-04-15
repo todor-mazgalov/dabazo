@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"dabazo/internal/engines"
-	"dabazo/internal/pkgmgr"
-	"dabazo/internal/registry"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/pkgmgr"
+	"github.com/todor-mazgalov/dabazo/internal/registry"
 )
 
 var flagPurge bool

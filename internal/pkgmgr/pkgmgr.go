@@ -6,12 +6,12 @@ import (
 	"os/exec"
 	"runtime"
 
-	"dabazo/internal/engines"
-	"dabazo/internal/pkgmgr/apt"
-	"dabazo/internal/pkgmgr/brew"
-	"dabazo/internal/pkgmgr/choco"
-	"dabazo/internal/pkgmgr/dnf"
-	"dabazo/internal/pkgmgr/winget"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/pkgmgr/apt"
+	"github.com/todor-mazgalov/dabazo/internal/pkgmgr/brew"
+	"github.com/todor-mazgalov/dabazo/internal/pkgmgr/choco"
+	"github.com/todor-mazgalov/dabazo/internal/pkgmgr/dnf"
+	"github.com/todor-mazgalov/dabazo/internal/pkgmgr/winget"
 )
 
 // Detect returns the appropriate package manager for the current OS.

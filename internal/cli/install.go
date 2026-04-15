@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"dabazo/internal/engines"
-	"dabazo/internal/pkgmgr"
-	"dabazo/internal/registry"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/pkgmgr"
+	"github.com/todor-mazgalov/dabazo/internal/registry"
 )
 
 // newInstallCommand creates the install command descriptor.

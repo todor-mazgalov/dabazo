@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"dabazo/internal/registry"
-	"dabazo/internal/secret"
+	"github.com/todor-mazgalov/dabazo/internal/registry"
+	"github.com/todor-mazgalov/dabazo/internal/secret"
 )
 
 // newConfigCommand creates the config command group with its subcommands.

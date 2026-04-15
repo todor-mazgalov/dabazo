@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"dabazo/internal/engines"
-	"dabazo/internal/engines/postgres"
-	"dabazo/internal/executor"
-	"dabazo/internal/prompt"
+	"github.com/todor-mazgalov/dabazo/internal/engines"
+	"github.com/todor-mazgalov/dabazo/internal/engines/postgres"
+	"github.com/todor-mazgalov/dabazo/internal/executor"
+	"github.com/todor-mazgalov/dabazo/internal/prompt"
 )
 
 // parseDB parses a --db flag value into engine name and version.
