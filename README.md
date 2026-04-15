@@ -29,17 +29,6 @@ dabazo is a cross-platform CLI tool for installing, running, and operating datab
 
 ## Installation
 
-### Docker (recommended)
-
-The Docker image provides a ready-to-use environment with all dependencies pre-installed.
-
-```bash
-docker build -t dabazo .
-docker run -it --rm dabazo
-```
-
-Inside the container you can run any `dabazo` command directly.
-
 ### From source
 
 Clone and build:
