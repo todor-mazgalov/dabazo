@@ -6,8 +6,14 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/todor-mazgalov/dabazo/internal/credfmt"
 	"github.com/todor-mazgalov/dabazo/internal/registry"
 	"github.com/todor-mazgalov/dabazo/internal/secret"
+)
+
+var (
+	flagOutput    string
+	flagURLFormat string
 )
 
 // newCreateCommand creates the create command group with its subcommands.
@@ -34,8 +40,16 @@ func newCreateUserCommand() *command {
 and a database of the same name. Writes credentials to a file named <username>
 in the current directory (mode 0600).`,
 		example: `  dabazo create user alice
-  dabazo create user bob --name dev`,
+  dabazo create user bob --name dev
+  dabazo create user alice --output bash
+  dabazo create user alice -o pwsh`,
 		run: runCreateUser,
+		localFlags: func(fs *flag.FlagSet) {
+			fs.StringVar(&flagOutput, "output", "java", "credential file format (java, shell, bash, bat, cmd, pwsh, powershell)")
+			fs.StringVar(&flagOutput, "o", "java", "short for --output")
+			fs.StringVar(&flagURLFormat, "url-format", "jdbc", "URL format for DB_URL (jdbc, plain)")
+			fs.StringVar(&flagURLFormat, "uf", "jdbc", "short for --url-format")
+		},
 	}
 }
 
@@ -69,14 +83,31 @@ func runCreateUser(args []string) error {
 		os.Exit(ExitGeneric)
 	}
 
+	outFmt, err := credfmt.Parse(flagOutput)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(ExitUsage)
+	}
+
+	urlFmt, err := credfmt.ParseURLFormat(flagURLFormat)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(ExitUsage)
+	}
+
 	runner := newRunner()
 	if err := eng.CreateUser(*inst, username, password, runner); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitDBOperation)
 	}
 
-	content := fmt.Sprintf("DB_URL=jdbc:postgresql://%s:%d/%s\nDB_USER=%s\nDB_PASSWORD=%s\n",
-		inst.Host, inst.Port, username, username, password)
+	dbURL := credfmt.FormatURL(urlFmt, inst.Engine, inst.Host, inst.Port, username)
+	kvs := []credfmt.KV{
+		{Key: "DB_URL", Value: dbURL},
+		{Key: "DB_USER", Value: username},
+		{Key: "DB_PASSWORD", Value: password},
+	}
+	content := credfmt.Render(outFmt, kvs)
 	if err := os.WriteFile(username, []byte(content), 0o600); err != nil {
 		fmt.Fprintf(os.Stderr, "error: writing credential file: %v\n", err)
 		os.Exit(ExitGeneric)

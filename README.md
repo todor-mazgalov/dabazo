@@ -139,7 +139,7 @@ dabazo stop --name dev
 
 ### `dabazo create user`
 
-Create a database role with a randomly generated password and a database of the same name. Writes credentials to a file named after the username in the current directory (mode 0600). The credential file contains `DB_URL`, `DB_USER`, and `DB_PASSWORD` in `.env` format.
+Create a database role with a randomly generated password and a database of the same name. Writes credentials to a file named after the username in the current directory (mode 0600). The credential file contains `DB_URL`, `DB_USER`, and `DB_PASSWORD`.
 
 **Usage:**
 
@@ -147,16 +147,33 @@ Create a database role with a randomly generated password and a database of the 
 dabazo create user <username> [flags]
 ```
 
+| Local Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--output` | `-o` | string | `java` | Credential file format: `java`, `shell`/`bash`, `bat`/`cmd`, `pwsh`/`powershell` |
+| `--url-format` | `-uf` | string | `jdbc` | URL style for `DB_URL`: `jdbc` (e.g. `jdbc:postgresql://...`) or `plain` (e.g. `postgresql://...`) |
+
+**Output format examples:**
+
+| Format | Example line |
+|---|---|
+| `java` (default) | `DB_USER=alice` |
+| `shell` / `bash` | `export DB_USER=alice` |
+| `bat` / `cmd` | `set DB_USER=alice` |
+| `pwsh` / `powershell` | `$env:DB_USER = "alice"` |
+
 **Examples:**
 
 ```bash
 dabazo create user alice
 dabazo create user bob --name dev
+dabazo create user alice -o bash
+dabazo create user alice -o pwsh -uf plain
 ```
 
 **Notes:**
 - Refuses to overwrite an existing credential file
 - The credential file is used by `dabazo migrate`, `dabazo create schema`, and `dabazo snapshot`
+- The JDBC URL prefix respects the engine (e.g. `jdbc:postgresql://`, `jdbc:mysql://`)
 
 ---
 

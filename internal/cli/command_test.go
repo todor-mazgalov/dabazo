@@ -24,6 +24,8 @@ func resetGlobalFlags(t *testing.T) {
 	flagUser = ""
 	flagDatabase = ""
 	flagSchema = ""
+	flagOutput = ""
+	flagURLFormat = ""
 	flagForce = false
 	flagPurge = false
 }
