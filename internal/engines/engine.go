@@ -26,6 +26,7 @@ type InstallPlan struct {
 	Commands    [][]string
 	PostInstall []string
 	DataDir     string
+	ConfigFile  string
 	ServiceName string
 	BinDir      string
 }
@@ -51,14 +52,34 @@ type Engine interface {
 	// CreateUser creates a database role and database with the given credentials.
 	CreateUser(inst Instance, username, password string, runner CommandRunner) error
 
-	// ApplySQL applies a SQL file to the instance's database.
-	ApplySQL(inst Instance, user, password, filepath string, runner CommandRunner) error
+	// CreateDatabase creates a database owned by the given role. Runs as the
+	// engine superuser; the owner role must already exist.
+	CreateDatabase(inst Instance, database, owner string, runner CommandRunner) error
+
+	// CreateSchema creates a schema inside the given database, connecting as
+	// the provided user with the given password.
+	CreateSchema(inst Instance, database, schema, user, password string, runner CommandRunner) error
+
+	// ApplySQL applies a SQL file to the instance's database. If database is
+	// empty it defaults to user. If schema is non-empty it is set as the
+	// session search_path for the duration of the script.
+	ApplySQL(inst Instance, user, password, database, schema, filepath string, runner CommandRunner) error
 
 	// Dump exports a database to a plain SQL file.
 	Dump(inst Instance, db, user, password, outPath string, runner CommandRunner) error
 
 	// IsRunning checks whether the instance is currently accepting connections.
 	IsRunning(inst Instance) bool
+
+	// DropUser drops a database role from the instance.
+	DropUser(inst Instance, username string, runner CommandRunner) error
+
+	// DropDatabase drops a database from the instance.
+	DropDatabase(inst Instance, database string, runner CommandRunner) error
+
+	// DropSchema drops a schema from the given database, connecting as the
+	// provided user with the given password.
+	DropSchema(inst Instance, database, schema, user, password string, runner CommandRunner) error
 
 	// UninstallPlan returns the commands needed to uninstall the packages.
 	UninstallPlan(inst Instance, pm PackageManager) (InstallPlan, error)

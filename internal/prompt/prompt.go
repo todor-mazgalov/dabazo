@@ -41,6 +41,32 @@ func ReadLine(prompt string, r io.Reader, w io.Writer) (string, error) {
 	return "", fmt.Errorf("no input received")
 }
 
+// ReadLineWithDefault reads a single line of input, returning defaultVal when
+// the user presses Enter without typing anything. The prompt is displayed as
+// "<prompt> [<defaultVal>]: " when a default is provided.
+func ReadLineWithDefault(prompt string, defaultVal string, r io.Reader, w io.Writer) (string, error) {
+	if defaultVal != "" {
+		fmt.Fprintf(w, "%s [%s]: ", prompt, defaultVal)
+	} else {
+		fmt.Fprintf(w, "%s: ", prompt)
+	}
+	scanner := bufio.NewScanner(r)
+	if scanner.Scan() {
+		val := strings.TrimSpace(scanner.Text())
+		if val == "" {
+			return defaultVal, nil
+		}
+		return val, nil
+	}
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("reading input: %w", err)
+	}
+	if defaultVal != "" {
+		return defaultVal, nil
+	}
+	return "", fmt.Errorf("no input received")
+}
+
 // ReadPassword reads a password from the terminal with hidden input.
 func ReadPassword(prompt string, w io.Writer) (string, error) {
 	fmt.Fprint(w, prompt)

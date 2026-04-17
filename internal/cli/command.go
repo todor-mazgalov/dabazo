@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -29,6 +30,8 @@ type command struct {
 	localFlags func(fs *flag.FlagSet)
 	// subcommands holds child commands for group commands.
 	subcommands []*command
+	// requiredFlags lists flags that can be prompted in interactive mode.
+	requiredFlags []requiredFlag
 }
 
 // dispatch resolves and executes the appropriate command from the argument list.
@@ -91,15 +94,33 @@ func parseAndRun(cmd *command, args []string, path string) error {
 		cmd.localFlags(fs)
 	}
 
-	if containsHelpFlag(args) {
+	var helpFlag bool
+	fs.BoolVar(&helpFlag, "help", false, "show help")
+	// Register -h as a help alias only if the command does not already use it.
+	if fs.Lookup("h") == nil {
+		fs.BoolVar(&helpFlag, "h", false, "short for --help")
+	}
+
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			printHelp(os.Stdout, cmd, path)
+			return nil
+		}
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		printUsageLine(os.Stderr, cmd, path)
+		os.Exit(ExitUsage)
+	}
+
+	if helpFlag {
 		printHelp(os.Stdout, cmd, path)
 		return nil
 	}
 
-	if err := fs.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		printUsageLine(os.Stderr, cmd, path)
-		os.Exit(ExitUsage)
+	if flagInteractive && len(cmd.requiredFlags) > 0 {
+		if err := promptMissing(cmd.requiredFlags, os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(ExitUsage)
+		}
 	}
 
 	return cmd.run(fs.Args())
@@ -121,14 +142,22 @@ func containsHelpFlag(args []string) bool {
 // registerGlobalFlags adds the persistent (global) flags to a flag set.
 func registerGlobalFlags(fs *flag.FlagSet) {
 	fs.StringVar(&flagName, "name", "", "logical instance name")
-	fs.StringVar(&flagDB, "db", "", "engine[:version] (e.g. postgres:16)")
+	fs.StringVar(&flagName, "n", "", "short for --name")
+	fs.StringVar(&flagEngine, "engine", "", "engine[:version] (e.g. postgres:16)")
+	fs.StringVar(&flagEngine, "e", "", "short for --engine")
 	fs.IntVar(&flagPort, "port", 0, "TCP port the instance listens on")
+	fs.IntVar(&flagPort, "p", 0, "short for --port")
 	fs.BoolVar(&flagYes, "yes", false, "skip confirmation prompts")
-	fs.BoolVar(&flagYes, "y", false, "skip confirmation prompts (short for -yes)")
+	fs.BoolVar(&flagYes, "y", false, "short for --yes")
+	fs.BoolVar(&flagInteractive, "interactive", false, "prompt for missing required parameters")
+	fs.BoolVar(&flagInteractive, "it", false, "short for --interactive")
 }
 
 // printHelp writes a formatted help page for the command to the given writer.
 func printHelp(w io.Writer, cmd *command, path string) {
+	if cmd.name == "dabazo" {
+		printMascot(w)
+	}
 	if cmd.long != "" {
 		fmt.Fprintln(w, cmd.long)
 	} else if cmd.short != "" {

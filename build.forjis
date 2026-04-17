@@ -16,6 +16,9 @@ orgs:
       - name: Dev
         extends: software-dev:RnD:Go
 
+personas:
+  dir: "./personas"
+
 tasks:
   source: dir
   path: ./tasks

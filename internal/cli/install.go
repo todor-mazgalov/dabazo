@@ -21,15 +21,35 @@ func newInstallCommand() *command {
 
 Prints the exact commands it will run and prompts for confirmation before executing.
 The instance is left stopped after installation; run 'dabazo start' next.`,
-		example: `  dabazo install --db postgres:16 --port 5432 --name dev
-  dabazo install --db postgres:17 --port 5433 --name next -y`,
+		example: `  dabazo install --engine postgres:16 --port 5432 --name dev
+  dabazo install -e postgres:17 -p 5433 -n next -y`,
 		run: runInstall,
+		requiredFlags: []requiredFlag{
+			{
+				name:        "engine",
+				description: "Engine[:version]",
+				isMissing:   func() bool { return flagEngine == "" },
+				set:         stringFlagSetter(&flagEngine),
+			},
+			{
+				name:        "port",
+				description: "TCP port",
+				isMissing:   func() bool { return flagPort == 0 },
+				set:         intFlagSetter(&flagPort),
+			},
+			{
+				name:        "name",
+				description: "Instance name",
+				isMissing:   func() bool { return flagName == "" },
+				set:         stringFlagSetter(&flagName),
+			},
+		},
 	}
 }
 
 func runInstall(args []string) error {
-	if flagDB == "" {
-		fmt.Fprintln(os.Stderr, "error: --db is required for install")
+	if flagEngine == "" {
+		fmt.Fprintln(os.Stderr, "error: --engine is required for install")
 		os.Exit(ExitUsage)
 	}
 	if flagPort == 0 {
@@ -51,7 +71,7 @@ func runInstall(args []string) error {
 		os.Exit(ExitAlreadyExists)
 	}
 
-	engineName, version := parseDB(flagDB)
+	engineName, version := parseDB(flagEngine)
 	eng, err := resolveEngine(engineName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

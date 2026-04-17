@@ -37,6 +37,7 @@ func runUninstall(args []string) error {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitNotFound)
 	}
+	printInstanceName(inst.Name)
 
 	if inst.PackageManager == "external" {
 		fmt.Fprintln(os.Stderr, "error: instance was added via `registry add`; dabazo does not manage its lifecycle")

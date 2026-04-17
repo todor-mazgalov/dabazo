@@ -41,12 +41,32 @@ packageManager "external" and cannot be started/stopped/uninstalled by dabazo.`,
 		localFlags: func(fs *flag.FlagSet) {
 			fs.StringVar(&flagHost, "host", "localhost", "host address for the instance")
 		},
+		requiredFlags: []requiredFlag{
+			{
+				name:        "engine",
+				description: "Engine[:version]",
+				isMissing:   func() bool { return flagEngine == "" },
+				set:         stringFlagSetter(&flagEngine),
+			},
+			{
+				name:        "port",
+				description: "TCP port",
+				isMissing:   func() bool { return flagPort == 0 },
+				set:         intFlagSetter(&flagPort),
+			},
+			{
+				name:        "name",
+				description: "Instance name",
+				isMissing:   func() bool { return flagName == "" },
+				set:         stringFlagSetter(&flagName),
+			},
+		},
 	}
 }
 
 func runRegistryAdd(args []string) error {
-	if flagDB == "" {
-		fmt.Fprintln(os.Stderr, "error: --db is required for registry add")
+	if flagEngine == "" {
+		fmt.Fprintln(os.Stderr, "error: --engine is required for registry add")
 		os.Exit(ExitUsage)
 	}
 	if flagPort == 0 {
@@ -58,7 +78,7 @@ func runRegistryAdd(args []string) error {
 		os.Exit(ExitUsage)
 	}
 
-	engineName, version := parseDB(flagDB)
+	engineName, version := parseDB(flagEngine)
 	if version == "" {
 		version = "unknown"
 	}
@@ -101,6 +121,7 @@ func runRegistryRemove(args []string) error {
 		fmt.Fprintln(os.Stderr, "error: --name is required for registry remove")
 		os.Exit(ExitUsage)
 	}
+	printInstanceName(flagName)
 
 	if err := registry.Remove(flagName); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

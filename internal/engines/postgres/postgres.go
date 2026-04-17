@@ -4,12 +4,19 @@ package postgres
 import (
 	"fmt"
 	"net"
+	"os"
 	"runtime"
 	"strconv"
 	"time"
 
 	"github.com/todor-mazgalov/dabazo/internal/engines"
 )
+
+// hasSystemd reports whether the current system is running systemd as PID 1.
+func hasSystemd() bool {
+	_, err := os.Stat("/run/systemd/system")
+	return err == nil
+}
 
 // Driver implements the Engine interface for PostgreSQL.
 type Driver struct{}
@@ -56,6 +63,7 @@ func planApt(plan *engines.InstallPlan, version string) {
 		{"sudo", "apt-get", "install", "-y", pkgs[0], pkgs[1]},
 	}
 	plan.DataDir = fmt.Sprintf("/var/lib/postgresql/%s/main", version)
+	plan.ConfigFile = fmt.Sprintf("/etc/postgresql/%s/main/postgresql.conf", version)
 	plan.ServiceName = fmt.Sprintf("postgresql@%s-main", version)
 	plan.PostInstall = []string{
 		fmt.Sprintf("initdb data directory: /var/lib/postgresql/%s/main", version),
@@ -162,7 +170,10 @@ func (d *Driver) initDBIfNeeded(plan engines.InstallPlan, runner engines.Command
 
 // configurePort sets the listen port in postgresql.conf.
 func (d *Driver) configurePort(plan engines.InstallPlan, runner engines.CommandRunner) error {
-	confPath := plan.DataDir + "/postgresql.conf"
+	confPath := plan.ConfigFile
+	if confPath == "" {
+		confPath = plan.DataDir + "/postgresql.conf"
+	}
 	portLine := fmt.Sprintf("port = %d", plan.Port)
 	if runtime.GOOS == "windows" {
 		_, err := runner.Run("powershell", "-Command",
@@ -210,6 +221,11 @@ func (d *Driver) startCommand(inst engines.Instance) []string {
 	switch inst.PackageManager {
 	case "brew":
 		return []string{"brew", "services", "start", inst.ServiceName}
+	case "apt":
+		if !hasSystemd() {
+			return []string{"sudo", "pg_ctlcluster", inst.Version, "main", "start"}
+		}
+		return []string{"sudo", "systemctl", "start", inst.ServiceName}
 	default:
 		return []string{"sudo", "systemctl", "start", inst.ServiceName}
 	}
@@ -223,6 +239,11 @@ func (d *Driver) stopCommand(inst engines.Instance) []string {
 	switch inst.PackageManager {
 	case "brew":
 		return []string{"brew", "services", "stop", inst.ServiceName}
+	case "apt":
+		if !hasSystemd() {
+			return []string{"sudo", "pg_ctlcluster", inst.Version, "main", "stop"}
+		}
+		return []string{"sudo", "systemctl", "stop", inst.ServiceName}
 	default:
 		return []string{"sudo", "systemctl", "stop", inst.ServiceName}
 	}
@@ -242,24 +263,132 @@ func pgCtlPath(inst engines.Instance) string {
 // CreateUser creates a PostgreSQL role and database using psql.
 func (d *Driver) CreateUser(inst engines.Instance, username, password string, runner engines.CommandRunner) error {
 	psql := psqlPath(inst)
-	sql := fmt.Sprintf(
-		"CREATE ROLE %s WITH LOGIN PASSWORD '%s'; CREATE DATABASE %s OWNER %s;",
-		username, password, username, username,
-	)
-	_, err := runner.Run(psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
-		"-U", "postgres", "-c", sql)
-	if err != nil {
+	createRole := fmt.Sprintf("CREATE ROLE %s WITH LOGIN PASSWORD '%s';", username, password)
+	createDB := fmt.Sprintf("CREATE DATABASE %s OWNER %s;", username, username)
+
+	run := func(sql string) error {
+		if inst.PackageManager == "apt" && runtime.GOOS == "linux" {
+			_, err := runner.Run("sudo", "-u", "postgres", psql,
+				"-p", strconv.Itoa(inst.Port), "-c", sql)
+			return err
+		}
+		_, err := runner.Run(psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+			"-U", "postgres", "-c", sql)
+		return err
+	}
+
+	if err := run(createRole); err != nil {
+		return fmt.Errorf("creating user %q: %w", username, err)
+	}
+	if err := run(createDB); err != nil {
 		return fmt.Errorf("creating user %q: %w", username, err)
 	}
 	return nil
 }
 
-// ApplySQL executes a SQL file against the instance database.
-func (d *Driver) ApplySQL(inst engines.Instance, user, password, filepath string, runner engines.CommandRunner) error {
+// CreateDatabase creates a database owned by the given role using psql.
+func (d *Driver) CreateDatabase(inst engines.Instance, database, owner string, runner engines.CommandRunner) error {
 	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`CREATE DATABASE "%s" OWNER "%s";`, database, owner)
+
+	if inst.PackageManager == "apt" && runtime.GOOS == "linux" {
+		_, err := runner.Run("sudo", "-u", "postgres", psql,
+			"-p", strconv.Itoa(inst.Port), "-c", sql)
+		if err != nil {
+			return fmt.Errorf("creating database %q: %w", database, err)
+		}
+		return nil
+	}
+	_, err := runner.Run(psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", "postgres", "-c", sql)
+	if err != nil {
+		return fmt.Errorf("creating database %q: %w", database, err)
+	}
+	return nil
+}
+
+// CreateSchema creates a schema inside the given database, connecting as the
+// provided user with the given password.
+func (d *Driver) CreateSchema(inst engines.Instance, database, schema, user, password string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`CREATE SCHEMA "%s";`, schema)
 	env := []string{fmt.Sprintf("PGPASSWORD=%s", password)}
 	_, err := runner.RunWithEnv(env, psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
-		"-U", user, "-d", user, "-f", filepath)
+		"-U", user, "-d", database, "-c", sql)
+	if err != nil {
+		return fmt.Errorf("creating schema %q in database %q: %w", schema, database, err)
+	}
+	return nil
+}
+
+// DropUser drops a PostgreSQL role using psql.
+func (d *Driver) DropUser(inst engines.Instance, username string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`DROP ROLE "%s";`, username)
+
+	if inst.PackageManager == "apt" && runtime.GOOS == "linux" {
+		_, err := runner.Run("sudo", "-u", "postgres", psql,
+			"-p", strconv.Itoa(inst.Port), "-c", sql)
+		if err != nil {
+			return fmt.Errorf("dropping user %q: %w", username, err)
+		}
+		return nil
+	}
+	_, err := runner.Run(psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", "postgres", "-c", sql)
+	if err != nil {
+		return fmt.Errorf("dropping user %q: %w", username, err)
+	}
+	return nil
+}
+
+// DropDatabase drops a PostgreSQL database using psql.
+func (d *Driver) DropDatabase(inst engines.Instance, database string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`DROP DATABASE "%s";`, database)
+
+	if inst.PackageManager == "apt" && runtime.GOOS == "linux" {
+		_, err := runner.Run("sudo", "-u", "postgres", psql,
+			"-p", strconv.Itoa(inst.Port), "-c", sql)
+		if err != nil {
+			return fmt.Errorf("dropping database %q: %w", database, err)
+		}
+		return nil
+	}
+	_, err := runner.Run(psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", "postgres", "-c", sql)
+	if err != nil {
+		return fmt.Errorf("dropping database %q: %w", database, err)
+	}
+	return nil
+}
+
+// DropSchema drops a schema from the given database, connecting as the
+// provided user with the given password.
+func (d *Driver) DropSchema(inst engines.Instance, database, schema, user, password string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`DROP SCHEMA "%s";`, schema)
+	env := []string{fmt.Sprintf("PGPASSWORD=%s", password)}
+	_, err := runner.RunWithEnv(env, psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", user, "-d", database, "-c", sql)
+	if err != nil {
+		return fmt.Errorf("dropping schema %q from database %q: %w", schema, database, err)
+	}
+	return nil
+}
+
+// ApplySQL executes a SQL file against the instance database.
+func (d *Driver) ApplySQL(inst engines.Instance, user, password, database, schema, filepath string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	if database == "" {
+		database = user
+	}
+	env := []string{fmt.Sprintf("PGPASSWORD=%s", password)}
+	if schema != "" {
+		env = append(env, fmt.Sprintf("PGOPTIONS=-c search_path=%s", schema))
+	}
+	_, err := runner.RunWithEnv(env, psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", user, "-d", database, "-f", filepath)
 	if err != nil {
 		return fmt.Errorf("applying SQL %q: %w", filepath, err)
 	}
