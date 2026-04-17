@@ -34,6 +34,14 @@ instance host from the registry.`,
   dabazo migrate ./V2__data.sql -u bob -n dev -db app -s public
   dabazo migrate ./V3.sql -u alice -h 10.0.0.5 -p 5433`,
 		run: runMigrate,
+		requiredFlags: []requiredFlag{
+			{
+				name:        "user",
+				description: "Database role",
+				isMissing:   func() bool { return flagUser == "" },
+				set:         stringFlagSetter(&flagUser),
+			},
+		},
 		localFlags: func(fs *flag.FlagSet) {
 			fs.StringVar(&flagUser, "user", "", "database role to use (required)")
 			fs.StringVar(&flagUser, "u", "", "short for --user")
@@ -64,6 +72,7 @@ func runMigrate(args []string) error {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitNotFound)
 	}
+	printInstanceName(inst.Name)
 
 	if flagHost != "" {
 		inst.Host = flagHost

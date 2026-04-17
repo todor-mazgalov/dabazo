@@ -43,6 +43,7 @@ func runSnapshot(args []string) error {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitNotFound)
 	}
+	printInstanceName(inst.Name)
 
 	if !flagForce {
 		if _, err := os.Stat(outPath); err == nil {

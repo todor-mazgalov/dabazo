@@ -65,6 +65,7 @@ func runCreateUser(args []string) error {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitNotFound)
 	}
+	printInstanceName(inst.Name)
 
 	if _, err := os.Stat(username); err == nil {
 		fmt.Fprintf(os.Stderr, "error: credential file %q already exists; refusing to overwrite\n", username)
@@ -133,6 +134,14 @@ PostgreSQL superuser and does not require a credential file.`,
 			fs.StringVar(&flagUser, "user", "", "owner role for the new database (required)")
 			fs.StringVar(&flagUser, "u", "", "short for --user")
 		},
+		requiredFlags: []requiredFlag{
+			{
+				name:        "user",
+				description: "Owner role",
+				isMissing:   func() bool { return flagUser == "" },
+				set:         stringFlagSetter(&flagUser),
+			},
+		},
 	}
 }
 
@@ -153,6 +162,7 @@ func runCreateDatabase(args []string) error {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitNotFound)
 	}
+	printInstanceName(inst.Name)
 
 	eng, err := resolveEngine(inst.Engine)
 	if err != nil {
@@ -188,6 +198,20 @@ file named after --user in the current directory.`,
 			fs.StringVar(&flagDatabase, "database", "", "database to create the schema in (required)")
 			fs.StringVar(&flagDatabase, "db", "", "short for --database")
 		},
+		requiredFlags: []requiredFlag{
+			{
+				name:        "user",
+				description: "Role to connect as",
+				isMissing:   func() bool { return flagUser == "" },
+				set:         stringFlagSetter(&flagUser),
+			},
+			{
+				name:        "database",
+				description: "Database name",
+				isMissing:   func() bool { return flagDatabase == "" },
+				set:         stringFlagSetter(&flagDatabase),
+			},
+		},
 	}
 }
 
@@ -212,6 +236,7 @@ func runCreateSchema(args []string) error {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(ExitNotFound)
 	}
+	printInstanceName(inst.Name)
 
 	password, err := loadPassword(flagUser)
 	if err != nil {

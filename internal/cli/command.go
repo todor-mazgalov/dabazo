@@ -30,6 +30,8 @@ type command struct {
 	localFlags func(fs *flag.FlagSet)
 	// subcommands holds child commands for group commands.
 	subcommands []*command
+	// requiredFlags lists flags that can be prompted in interactive mode.
+	requiredFlags []requiredFlag
 }
 
 // dispatch resolves and executes the appropriate command from the argument list.
@@ -114,6 +116,13 @@ func parseAndRun(cmd *command, args []string, path string) error {
 		return nil
 	}
 
+	if flagInteractive && len(cmd.requiredFlags) > 0 {
+		if err := promptMissing(cmd.requiredFlags, os.Stdin, os.Stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(ExitUsage)
+		}
+	}
+
 	return cmd.run(fs.Args())
 }
 
@@ -140,10 +149,15 @@ func registerGlobalFlags(fs *flag.FlagSet) {
 	fs.IntVar(&flagPort, "p", 0, "short for --port")
 	fs.BoolVar(&flagYes, "yes", false, "skip confirmation prompts")
 	fs.BoolVar(&flagYes, "y", false, "short for --yes")
+	fs.BoolVar(&flagInteractive, "interactive", false, "prompt for missing required parameters")
+	fs.BoolVar(&flagInteractive, "it", false, "short for --interactive")
 }
 
 // printHelp writes a formatted help page for the command to the given writer.
 func printHelp(w io.Writer, cmd *command, path string) {
+	if cmd.name == "dabazo" {
+		printMascot(w)
+	}
 	if cmd.long != "" {
 		fmt.Fprintln(w, cmd.long)
 	} else if cmd.short != "" {

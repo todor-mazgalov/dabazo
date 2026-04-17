@@ -59,6 +59,11 @@ func printPlan(action string, plan engines.InstallPlan, instanceName string) {
 	fmt.Printf("    registered as:         %s\n\n", instanceName)
 }
 
+// printInstanceName prints the resolved instance name to stdout.
+func printInstanceName(name string) {
+	fmt.Printf("Instance: %s\n", name)
+}
+
 // confirmOrAbort prompts for confirmation and exits if the user declines.
 func confirmOrAbort(yes bool) {
 	ok := prompt.Confirm("Proceed? [y/N] ", yes, os.Stdin, os.Stdout)

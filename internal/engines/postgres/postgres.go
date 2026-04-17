@@ -321,6 +321,62 @@ func (d *Driver) CreateSchema(inst engines.Instance, database, schema, user, pas
 	return nil
 }
 
+// DropUser drops a PostgreSQL role using psql.
+func (d *Driver) DropUser(inst engines.Instance, username string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`DROP ROLE "%s";`, username)
+
+	if inst.PackageManager == "apt" && runtime.GOOS == "linux" {
+		_, err := runner.Run("sudo", "-u", "postgres", psql,
+			"-p", strconv.Itoa(inst.Port), "-c", sql)
+		if err != nil {
+			return fmt.Errorf("dropping user %q: %w", username, err)
+		}
+		return nil
+	}
+	_, err := runner.Run(psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", "postgres", "-c", sql)
+	if err != nil {
+		return fmt.Errorf("dropping user %q: %w", username, err)
+	}
+	return nil
+}
+
+// DropDatabase drops a PostgreSQL database using psql.
+func (d *Driver) DropDatabase(inst engines.Instance, database string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`DROP DATABASE "%s";`, database)
+
+	if inst.PackageManager == "apt" && runtime.GOOS == "linux" {
+		_, err := runner.Run("sudo", "-u", "postgres", psql,
+			"-p", strconv.Itoa(inst.Port), "-c", sql)
+		if err != nil {
+			return fmt.Errorf("dropping database %q: %w", database, err)
+		}
+		return nil
+	}
+	_, err := runner.Run(psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", "postgres", "-c", sql)
+	if err != nil {
+		return fmt.Errorf("dropping database %q: %w", database, err)
+	}
+	return nil
+}
+
+// DropSchema drops a schema from the given database, connecting as the
+// provided user with the given password.
+func (d *Driver) DropSchema(inst engines.Instance, database, schema, user, password string, runner engines.CommandRunner) error {
+	psql := psqlPath(inst)
+	sql := fmt.Sprintf(`DROP SCHEMA "%s";`, schema)
+	env := []string{fmt.Sprintf("PGPASSWORD=%s", password)}
+	_, err := runner.RunWithEnv(env, psql, "-h", inst.Host, "-p", strconv.Itoa(inst.Port),
+		"-U", user, "-d", database, "-c", sql)
+	if err != nil {
+		return fmt.Errorf("dropping schema %q from database %q: %w", schema, database, err)
+	}
+	return nil
+}
+
 // ApplySQL executes a SQL file against the instance database.
 func (d *Driver) ApplySQL(inst engines.Instance, user, password, database, schema, filepath string, runner engines.CommandRunner) error {
 	psql := psqlPath(inst)

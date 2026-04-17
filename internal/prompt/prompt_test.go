@@ -52,11 +52,104 @@ func TestReadLine(t *testing.T) {
 	}
 }
 
+func TestReadLineWithDefault_AcceptsDefault(t *testing.T) {
+	r := strings.NewReader("\n")
+	w := &bytes.Buffer{}
+	got, err := ReadLineWithDefault("Port", "5432", r, w)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "5432" {
+		t.Errorf("expected '5432', got %q", got)
+	}
+	if !strings.Contains(w.String(), "[5432]") {
+		t.Errorf("prompt should show default value, got %q", w.String())
+	}
+}
+
+func TestReadLineWithDefault_OverridesDefault(t *testing.T) {
+	r := strings.NewReader("9999\n")
+	w := &bytes.Buffer{}
+	got, err := ReadLineWithDefault("Port", "5432", r, w)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "9999" {
+		t.Errorf("expected '9999', got %q", got)
+	}
+}
+
+func TestReadLineWithDefault_EmptyDefaultBehavesLikeReadLine(t *testing.T) {
+	r := strings.NewReader("hello\n")
+	w := &bytes.Buffer{}
+	got, err := ReadLineWithDefault("Value", "", r, w)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "hello" {
+		t.Errorf("expected 'hello', got %q", got)
+	}
+}
+
+func TestReadLineWithDefault_EmptyDefaultNoInput(t *testing.T) {
+	r := strings.NewReader("")
+	w := &bytes.Buffer{}
+	_, err := ReadLineWithDefault("Value", "", r, w)
+	if err == nil {
+		t.Error("expected error on empty input with no default")
+	}
+}
+
 func TestReadLine_Empty(t *testing.T) {
 	r := strings.NewReader("")
 	w := &bytes.Buffer{}
 	_, err := ReadLine("Enter: ", r, w)
 	if err == nil {
 		t.Error("expected error on empty input")
+	}
+}
+
+// --------------------------------------------------------------------------
+// Additional ReadLineWithDefault tests
+// --------------------------------------------------------------------------
+
+func TestReadLineWithDefault_TrimWhitespace(t *testing.T) {
+	r := strings.NewReader("  hello  \n")
+	w := &bytes.Buffer{}
+	got, err := ReadLineWithDefault("Value", "", r, w)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "hello" {
+		t.Errorf("expected 'hello', got %q", got)
+	}
+}
+
+func TestReadLineWithDefault_PromptFormatWithDefault(t *testing.T) {
+	r := strings.NewReader("\n")
+	w := &bytes.Buffer{}
+	_, _ = ReadLineWithDefault("Port", "5432", r, w)
+	prompt := w.String()
+	if prompt != "Port [5432]: " {
+		t.Errorf("prompt format = %q, want %q", prompt, "Port [5432]: ")
+	}
+}
+
+func TestReadLineWithDefault_PromptFormatWithoutDefault(t *testing.T) {
+	r := strings.NewReader("val\n")
+	w := &bytes.Buffer{}
+	_, _ = ReadLineWithDefault("Name", "", r, w)
+	prompt := w.String()
+	if prompt != "Name: " {
+		t.Errorf("prompt format = %q, want %q", prompt, "Name: ")
+	}
+}
+
+func TestReadLine_WritesPrompt(t *testing.T) {
+	r := strings.NewReader("val\n")
+	w := &bytes.Buffer{}
+	_, _ = ReadLine("Enter value: ", r, w)
+	if w.String() != "Enter value: " {
+		t.Errorf("prompt output = %q, want %q", w.String(), "Enter value: ")
 	}
 }

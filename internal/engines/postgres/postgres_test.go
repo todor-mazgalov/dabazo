@@ -391,6 +391,207 @@ func TestDriver_Dump_Error(t *testing.T) {
 	}
 }
 
+func TestDriver_DropUser_CallsPsql(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{}
+	err := d.DropUser(inst, "alice", runner)
+	if err != nil {
+		t.Fatalf("DropUser: %v", err)
+	}
+	if len(runner.calls) == 0 {
+		t.Fatal("expected psql call")
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, "psql") {
+		t.Errorf("expected psql in command, got: %s", call)
+	}
+	if !strings.Contains(call, "DROP ROLE") {
+		t.Errorf("expected DROP ROLE in SQL, got: %s", call)
+	}
+	if !strings.Contains(call, "alice") {
+		t.Errorf("expected username in SQL, got: %s", call)
+	}
+}
+
+func TestDriver_DropUser_Error(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{failOn: "psql"}
+	err := d.DropUser(inst, "alice", runner)
+	if err == nil {
+		t.Error("expected error when psql fails")
+	}
+}
+
+func TestDriver_DropDatabase_CallsPsql(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{}
+	err := d.DropDatabase(inst, "mydb", runner)
+	if err != nil {
+		t.Fatalf("DropDatabase: %v", err)
+	}
+	if len(runner.calls) == 0 {
+		t.Fatal("expected psql call")
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, "DROP DATABASE") {
+		t.Errorf("expected DROP DATABASE in SQL, got: %s", call)
+	}
+	if !strings.Contains(call, "mydb") {
+		t.Errorf("expected database name in SQL, got: %s", call)
+	}
+}
+
+func TestDriver_DropDatabase_Error(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{failOn: "psql"}
+	err := d.DropDatabase(inst, "mydb", runner)
+	if err == nil {
+		t.Error("expected error when psql fails")
+	}
+}
+
+func TestDriver_DropSchema_UsesPGPASSWORD(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{}
+	err := d.DropSchema(inst, "mydb", "public", "alice", "pass123", runner)
+	if err != nil {
+		t.Fatalf("DropSchema: %v", err)
+	}
+	if len(runner.calls) == 0 {
+		t.Fatal("expected psql call")
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, "PGPASSWORD=pass123") {
+		t.Errorf("expected PGPASSWORD in env, got: %s", call)
+	}
+	if !strings.Contains(call, "DROP SCHEMA") {
+		t.Errorf("expected DROP SCHEMA in SQL, got: %s", call)
+	}
+	if !strings.Contains(call, "public") {
+		t.Errorf("expected schema name in SQL, got: %s", call)
+	}
+}
+
+func TestDriver_DropSchema_Error(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{failOn: "psql"}
+	err := d.DropSchema(inst, "mydb", "public", "alice", "pass", runner)
+	if err == nil {
+		t.Error("expected error when psql fails")
+	}
+}
+
+// --------------------------------------------------------------------------
+// Additional drop method tests — identifier quoting and connection details
+// --------------------------------------------------------------------------
+
+func TestDriver_DropUser_QuotesIdentifier(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{}
+	err := d.DropUser(inst, "user with spaces", runner)
+	if err != nil {
+		t.Fatalf("DropUser: %v", err)
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, `"user with spaces"`) {
+		t.Errorf("expected double-quoted identifier, got: %s", call)
+	}
+}
+
+func TestDriver_DropDatabase_QuotesIdentifier(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{}
+	err := d.DropDatabase(inst, "my-database", runner)
+	if err != nil {
+		t.Fatalf("DropDatabase: %v", err)
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, `"my-database"`) {
+		t.Errorf("expected double-quoted identifier, got: %s", call)
+	}
+}
+
+func TestDriver_DropSchema_ConnectsToCorrectDatabase(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{}
+	err := d.DropSchema(inst, "targetdb", "myschema", "alice", "pass", runner)
+	if err != nil {
+		t.Fatalf("DropSchema: %v", err)
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, "-d targetdb") {
+		t.Errorf("expected -d targetdb in command, got: %s", call)
+	}
+	if !strings.Contains(call, "-U alice") {
+		t.Errorf("expected -U alice in command, got: %s", call)
+	}
+}
+
+func TestDriver_DropSchema_QuotesSchemaName(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432}
+	runner := &mockRunner{}
+	err := d.DropSchema(inst, "mydb", "my schema", "alice", "pass", runner)
+	if err != nil {
+		t.Fatalf("DropSchema: %v", err)
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, `"my schema"`) {
+		t.Errorf("expected double-quoted schema identifier, got: %s", call)
+	}
+}
+
+func TestDriver_DropUser_UsesCorrectPort(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 9999}
+	runner := &mockRunner{}
+	err := d.DropUser(inst, "alice", runner)
+	if err != nil {
+		t.Fatalf("DropUser: %v", err)
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, "9999") {
+		t.Errorf("expected port 9999 in command, got: %s", call)
+	}
+}
+
+func TestDriver_DropDatabase_UsesCorrectPort(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 8888}
+	runner := &mockRunner{}
+	err := d.DropDatabase(inst, "mydb", runner)
+	if err != nil {
+		t.Fatalf("DropDatabase: %v", err)
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, "8888") {
+		t.Errorf("expected port 8888 in command, got: %s", call)
+	}
+}
+
+func TestDriver_DropUser_WithBinDir(t *testing.T) {
+	d := &Driver{}
+	inst := engines.Instance{Host: "localhost", Port: 5432, BinDir: "/usr/local/pgsql/bin"}
+	runner := &mockRunner{}
+	err := d.DropUser(inst, "alice", runner)
+	if err != nil {
+		t.Fatalf("DropUser: %v", err)
+	}
+	call := runner.calls[0]
+	if !strings.Contains(call, "/usr/local/pgsql/bin") {
+		t.Errorf("expected BinDir in psql path, got: %s", call)
+	}
+}
+
 func TestDriver_UninstallPlan_Apt(t *testing.T) {
 	d := &Driver{}
 	inst := engines.Instance{Version: "16", Port: 5432}

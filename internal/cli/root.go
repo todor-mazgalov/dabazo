@@ -19,10 +19,11 @@ func version() string {
 }
 
 var (
-	flagName   string
-	flagEngine string
-	flagPort   int
-	flagYes    bool
+	flagName        string
+	flagEngine      string
+	flagPort        int
+	flagYes         bool
+	flagInteractive bool
 )
 
 // newRootCommand builds the root command tree with all subcommands registered.
@@ -41,6 +42,7 @@ instance, create users, apply migrations, and snapshot data for debugging.`,
 			newStartCommand(),
 			newStopCommand(),
 			newCreateCommand(),
+			newDeleteCommand(),
 			newMigrateCommand(),
 			newSnapshotCommand(),
 			newRegistryCommand(),
@@ -54,6 +56,7 @@ instance, create users, apply migrations, and snapshot data for debugging.`,
 func Execute() {
 	for _, a := range os.Args[1:] {
 		if a == "--version" || a == "-v" {
+			printMascot(os.Stdout)
 			fmt.Println("dabazo " + version())
 			return
 		}

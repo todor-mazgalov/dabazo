@@ -71,6 +71,16 @@ type Engine interface {
 	// IsRunning checks whether the instance is currently accepting connections.
 	IsRunning(inst Instance) bool
 
+	// DropUser drops a database role from the instance.
+	DropUser(inst Instance, username string, runner CommandRunner) error
+
+	// DropDatabase drops a database from the instance.
+	DropDatabase(inst Instance, database string, runner CommandRunner) error
+
+	// DropSchema drops a schema from the given database, connecting as the
+	// provided user with the given password.
+	DropSchema(inst Instance, database, schema, user, password string, runner CommandRunner) error
+
 	// UninstallPlan returns the commands needed to uninstall the packages.
 	UninstallPlan(inst Instance, pm PackageManager) (InstallPlan, error)
 }

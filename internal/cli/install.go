@@ -24,6 +24,26 @@ The instance is left stopped after installation; run 'dabazo start' next.`,
 		example: `  dabazo install --engine postgres:16 --port 5432 --name dev
   dabazo install -e postgres:17 -p 5433 -n next -y`,
 		run: runInstall,
+		requiredFlags: []requiredFlag{
+			{
+				name:        "engine",
+				description: "Engine[:version]",
+				isMissing:   func() bool { return flagEngine == "" },
+				set:         stringFlagSetter(&flagEngine),
+			},
+			{
+				name:        "port",
+				description: "TCP port",
+				isMissing:   func() bool { return flagPort == 0 },
+				set:         intFlagSetter(&flagPort),
+			},
+			{
+				name:        "name",
+				description: "Instance name",
+				isMissing:   func() bool { return flagName == "" },
+				set:         stringFlagSetter(&flagName),
+			},
+		},
 	}
 }
 

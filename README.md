@@ -17,6 +17,8 @@ dabazo is a cross-platform CLI tool for installing, running, and operating datab
 - **SQL migrations** -- apply SQL files to any registered instance
 - **Database snapshots** -- dump an entire database to a portable SQL file
 - **External instance support** -- register pre-existing databases not installed by dabazo
+- **Delete operations** -- drop users, databases, and schemas with confirmation prompts
+- **Interactive mode** -- use `--interactive` / `-it` to be prompted for missing required parameters
 - **Minimal dependencies** -- built with Go standard library plus `golang.org/x/term`
 
 ## Requirements
@@ -65,6 +67,9 @@ dabazo create user alice --name dev
 
 # 4. Apply a migration
 dabazo migrate ./V1__setup.sql --user alice --name dev
+
+# 5. Delete the user when done
+dabazo delete user alice --name dev
 ```
 
 ## Command Reference
@@ -112,7 +117,9 @@ dabazo start
 dabazo start --name dev
 ```
 
-**Notes:** Cannot start instances added via `registry add` (external instances).
+**Notes:**
+- The resolved instance name is printed as the first output line
+- Cannot start instances added via `registry add` (external instances)
 
 ---
 
@@ -133,7 +140,9 @@ dabazo stop
 dabazo stop --name dev
 ```
 
-**Notes:** Cannot stop instances added via `registry add` (external instances).
+**Notes:**
+- The resolved instance name is printed as the first output line
+- Cannot stop instances added via `registry add` (external instances)
 
 ---
 
@@ -224,6 +233,76 @@ dabazo create schema <schema-name> [flags]
 ```bash
 dabazo create schema audit -db app -u alice
 dabazo create schema reporting -db app -u alice --name dev
+```
+
+---
+
+### `dabazo delete user`
+
+Drop a database role. Prompts for confirmation before executing. The resolved instance name is printed as the first output line.
+
+**Usage:**
+
+```
+dabazo delete user <username> [flags]
+```
+
+**Examples:**
+
+```bash
+dabazo delete user alice
+dabazo delete user bob --name dev -y
+```
+
+**Notes:**
+- Will fail if the role owns databases or other objects; handle dependencies manually before dropping
+- Use `--yes` / `-y` to skip the confirmation prompt
+
+---
+
+### `dabazo delete database`
+
+Drop a database. Prompts for confirmation before executing. The resolved instance name is printed as the first output line.
+
+**Usage:**
+
+```
+dabazo delete database <database-name> [flags]
+```
+
+**Examples:**
+
+```bash
+dabazo delete database app
+dabazo delete database reports --name dev -y
+```
+
+**Notes:** Will fail if there are active connections to the database.
+
+---
+
+### `dabazo delete schema`
+
+Drop a schema from a database. Connects as the role identified by `--user`, reading the password from a credential file named after the user in the current directory. The resolved instance name is printed as the first output line.
+
+**Usage:**
+
+```
+dabazo delete schema <schema-name> [flags]
+```
+
+**Required flags:** `--user`, `--database`
+
+| Local Flag | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--user` | `-u` | string | `""` | Role to connect as |
+| `--database` | `-db` | string | `""` | Database containing the schema |
+
+**Examples:**
+
+```bash
+dabazo delete schema audit -db app -u alice
+dabazo delete schema public -db app -u alice --name dev -y
 ```
 
 ---
@@ -368,7 +447,9 @@ dabazo uninstall --name dev
 dabazo uninstall --name dev --purge -y
 ```
 
-**Notes:** Cannot uninstall instances added via `registry add` (external instances).
+**Notes:**
+- The resolved instance name is printed as the first output line
+- Cannot uninstall instances added via `registry add` (external instances)
 
 ## Global Flags
 
@@ -380,6 +461,7 @@ These flags are available on all commands:
 | `--engine` | `-e` | string | `""` | Engine and version in `engine[:version]` format (e.g., `postgres:16`) |
 | `--port` | `-p` | int | `0` | TCP port the instance listens on |
 | `--yes` | `-y` | bool | `false` | Skip confirmation prompts |
+| `--interactive` | `-it` | bool | `false` | Enable interactive prompting for missing required parameters |
 
 **Help:** use `--help` on any command. The short `-h` is reserved for `--host` on commands that accept it (e.g. `dabazo migrate`); all other commands accept `-h` as a help alias.
 
