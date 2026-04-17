@@ -17,7 +17,7 @@ orgs:
         extends: software-dev:RnD:Go
 
 personas:
-  dir: "./personas"
+  dir: ./personas
 
 tasks:
   source: dir
