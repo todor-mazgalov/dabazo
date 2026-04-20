@@ -7,8 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
+	"github.com/todor-mazgalov/dabazo/internal/credfmt"
 	"github.com/todor-mazgalov/dabazo/internal/prompt"
 	"github.com/todor-mazgalov/dabazo/internal/registry"
 )
@@ -124,9 +124,8 @@ func loadPassword(username string) (string, error) {
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "DB_PASSWORD=") {
-			return strings.TrimPrefix(line, "DB_PASSWORD="), nil
+		if v, ok := credfmt.ExtractValue(scanner.Text(), "DB_PASSWORD"); ok {
+			return v, nil
 		}
 	}
 	if err := scanner.Err(); err != nil {

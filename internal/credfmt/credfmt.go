@@ -65,6 +65,59 @@ type KV struct {
 	Value string
 }
 
+// ExtractValue parses a single credential-file line and returns the value
+// assigned to key, if any. It accepts all formats produced by Render:
+//
+//	KEY=value              (Java / .env)
+//	export KEY=value       (shell)
+//	set KEY=value          (bat)
+//	$env:KEY = "value"     (PowerShell, quotes optional)
+//
+// Surrounding whitespace, a trailing comment starting with '#', and matched
+// single or double quotes around the value are stripped. Prefix keywords
+// (export, set, $env:) are matched case-insensitively. ok is false when the
+// line does not assign to key.
+func ExtractValue(line, key string) (value string, ok bool) {
+	s := strings.TrimSpace(line)
+	if s == "" || strings.HasPrefix(s, "#") {
+		return "", false
+	}
+
+	// Strip a leading prefix keyword, if present.
+	switch {
+	case hasPrefixFold(s, "export "):
+		s = strings.TrimSpace(s[len("export "):])
+	case hasPrefixFold(s, "set "):
+		s = strings.TrimSpace(s[len("set "):])
+	case hasPrefixFold(s, "$env:"):
+		s = strings.TrimSpace(s[len("$env:"):])
+	}
+
+	eq := strings.IndexByte(s, '=')
+	if eq < 0 {
+		return "", false
+	}
+	k := strings.TrimSpace(s[:eq])
+	if k != key {
+		return "", false
+	}
+	v := strings.TrimSpace(s[eq+1:])
+	if len(v) >= 2 {
+		first, last := v[0], v[len(v)-1]
+		if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
+			v = v[1 : len(v)-1]
+		}
+	}
+	return v, true
+}
+
+func hasPrefixFold(s, prefix string) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	return strings.EqualFold(s[:len(prefix)], prefix)
+}
+
 // URLFormat identifies how the connection URL is rendered.
 type URLFormat int
 

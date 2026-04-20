@@ -133,6 +133,43 @@ func TestFormatURL_JDBC_MySQL(t *testing.T) {
 	}
 }
 
+func TestExtractValue(t *testing.T) {
+	cases := []struct {
+		name    string
+		line    string
+		key     string
+		want    string
+		wantOK  bool
+	}{
+		{"java", "DB_PASSWORD=s3cret", "DB_PASSWORD", "s3cret", true},
+		{"shell", "export DB_PASSWORD=s3cret", "DB_PASSWORD", "s3cret", true},
+		{"bat", "set DB_PASSWORD=s3cret", "DB_PASSWORD", "s3cret", true},
+		{"pwsh-quoted", `$env:DB_PASSWORD = "s3cret"`, "DB_PASSWORD", "s3cret", true},
+		{"pwsh-no-space", `$env:DB_PASSWORD="s3cret"`, "DB_PASSWORD", "s3cret", true},
+		{"pwsh-single-quotes", `$env:DB_PASSWORD = 's3cret'`, "DB_PASSWORD", "s3cret", true},
+		{"leading-whitespace", "   export DB_PASSWORD=s3cret", "DB_PASSWORD", "s3cret", true},
+		{"trailing-whitespace", "DB_PASSWORD=s3cret   ", "DB_PASSWORD", "s3cret", true},
+		{"case-insensitive-keyword", "EXPORT DB_PASSWORD=s3cret", "DB_PASSWORD", "s3cret", true},
+		{"different-key", "DB_USER=alice", "DB_PASSWORD", "", false},
+		{"comment", "# DB_PASSWORD=nope", "DB_PASSWORD", "", false},
+		{"blank", "", "DB_PASSWORD", "", false},
+		{"no-equals", "DB_PASSWORD", "DB_PASSWORD", "", false},
+		{"value-with-equals", "DB_URL=jdbc:postgresql://h/db", "DB_URL", "jdbc:postgresql://h/db", true},
+		{"empty-value", "DB_PASSWORD=", "DB_PASSWORD", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := ExtractValue(tc.line, tc.key)
+			if ok != tc.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tc.wantOK)
+			}
+			if got != tc.want {
+				t.Errorf("value = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestFormatURL_UnknownEngine(t *testing.T) {
 	got := FormatURL(Plain, "redis", "localhost", 6379, "0")
 	want := "redis://localhost:6379/0"
